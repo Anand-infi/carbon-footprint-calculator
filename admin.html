@@ -1,2 +1,56 @@
-<h1> Admin dashboard </h1>
-<h2> new work</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="style.css"> 
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script>
+        // PASTE YOUR firebaseConfig OBJECT AND INITIALIZATION HERE
+        const firebaseConfig = {
+            // Your API Keys and IDs go here
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Admin Dashboard</h1>
+        <button id="logout-btn">Logout</button>
+        
+        <div class="tab-container">
+            <button class="tab-link active" onclick="openTab(event, 'Factors')">Emission Factors</button>
+            <button class="tab-link" onclick="openTab(event, 'Clients')">Client Management</button>
+        </div>
+
+        <div id="Factors" class="tab-content active-content">
+            <h2>1. Manage Emission Factors</h2>
+            <form id="add-factor-form">
+                <input type="text" id="factor-name" placeholder="Factor Name (e.g., Grid Electricity kWh)" required>
+                <input type="text" id="factor-scope" placeholder="Scope (1, 2, or 3)" required>
+                <input type="number" id="factor-value" placeholder="Factor Value (kg CO2e/unit)" step="0.001" required>
+                <input type="text" id="factor-unit" placeholder="Unit (e.g., kWh)" required>
+                <button type="submit">Add Factor</button>
+            </form>
+            <h3>Existing Factors:</h3>
+            <ul id="factors-list">
+                </ul>
+        </div>
+
+        <div id="Clients" class="tab-content">
+            <h2>2. Manage Clients & Modules</h2>
+            <p>This is where you will register new clients and assign them a specific data input module.</p>
+            </div>
+
+        <p id="admin-message" class="error"></p>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>
