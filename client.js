@@ -1,131 +1,154 @@
-// Global variables to store factors and user data
+// Global variables
 let emissionFactors = {};
 let currentUserData = {};
+let currentSubmission = null; // Stores the latest submission data
 
-// Logout functionality
-document.getElementById('logout-btn').addEventListener('click', () => {
-    auth.signOut().then(() => {
-        window.location.href = 'index.html';
-    }).catch((error) => {
-        console.error("Logout error:", error);
-    });
+// Element References
+const logoutBtn = document.getElementById('logout-btn');
+const reportsList = document.getElementById('reports-list');
+const dynamicInputs = document.getElementById('dynamic-inputs');
+const submitDataBtn = document.getElementById('submit-data-btn');
+const clientMessage = document.getElementById('client-message');
+const calculationResult = document.getElementById('calculation-result');
+const reportingFormContainer = document.getElementById('reporting-form-container');
+const moduleDisplay = document.getElementById('module-display');
+
+// Event Listeners
+logoutBtn.addEventListener('click', () => {
+    auth.signOut().then(() => { window.location.href = 'index.html'; });
 });
+document.getElementById('carbon-data-form').addEventListener('submit', handleSubmission);
+
+// --- Initialization ---
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Authorization Check
     auth.onAuthStateChanged(user => {
         if (!user) {
-            window.location.href = 'index.html'; // Redirect if not logged in
+            window.location.href = 'index.html';
             return;
         } 
-
-        // 2. Fetch User Data (Role and Module)
+        // 1. Fetch User Data (Role and Module)
         db.collection("users").doc(user.uid).get()
             .then((doc) => {
                 if (doc.exists && doc.data().role === 'client') {
                     currentUserData = doc.data();
                     document.getElementById('welcome-message').textContent = `${currentUserData.organizationName} Portal`;
-                    document.getElementById('module-display').textContent = currentUserData.reportingModule;
+                    moduleDisplay.textContent = currentUserData.reportingModule;
 
-                    // 3. Load Factors and Generate Form
+                    // 2. Load Factors and Check Submission Status
                     loadEmissionFactors().then(() => {
-                        generateForm(currentUserData.reportingModule);
-                        loadHistoricalReports(user.uid);
+                        checkSubmissionStatus(user.uid);
                     });
                 } else {
                     alert('Access Denied: Not a valid Client role.');
                     auth.signOut();
                 }
-            })
-            .catch(error => {
-                console.error("Error loading user data:", error);
-                auth.signOut();
             });
     });
 });
 
-
-// ----------------------------------------------------
-// 1. Factor Retrieval Logic
-// ----------------------------------------------------
+// --- Core Workflow Logic ---
 
 function loadEmissionFactors() {
     return db.collection('emission_factors').get()
         .then((snapshot) => {
             snapshot.forEach((doc) => {
                 const factor = doc.data();
-                // Store factors keyed by a unique ID (e.g., name_scope_unit)
-                const key = `${factor.name.replace(/\s/g, '_')}_S${factor.scope}`;
+                // Key matches admin logic: name_Sscope
+                const key = factor.name.replace(/\s/g, '_') + '_S' + factor.scope;
                 emissionFactors[key] = factor;
             });
-            console.log("Factors loaded:", emissionFactors);
-        })
-        .catch((error) => {
-            console.error("Error loading factors:", error);
+        });
+}
+
+function checkSubmissionStatus(userId) {
+    // Get the most recent submission
+    db.collection('submissions')
+        .where('organizationId', '==', userId)
+        .orderBy('timestamp', 'desc')
+        .limit(1)
+        .get()
+        .then((snapshot) => {
+            if (!snapshot.empty) {
+                currentSubmission = { ...snapshot.docs[0].data(), id: snapshot.docs[0].id };
+            }
+            
+            // Handle display based on status
+            if (!currentSubmission || currentSubmission.status === 'Rejected' || currentSubmission.status === 'Approved') {
+                // Allow form entry if first time, rejected, or after a report is approved
+                generateForm(currentUserData.reportingModule, currentSubmission);
+                if (currentSubmission && currentSubmission.status === 'Approved') {
+                    displayApprovedReport(currentSubmission);
+                }
+            } else if (currentSubmission.status === 'Pending Review') {
+                // LOCK the form if Admin hasn't reviewed it yet
+                reportingFormContainer.innerHTML = `
+                    <p style="color: orange; font-weight: bold;">
+                        Your submission from ${currentSubmission.timestamp.toDate().toLocaleDateString()} is currently pending Admin review.
+                        Please wait for verification before submitting new data.
+                    </p>
+                `;
+            }
+            loadHistoricalReports(userId);
         });
 }
 
 
-// ----------------------------------------------------
-// 2. Dynamic Form Generation (Based on Module)
-// ----------------------------------------------------
+function generateForm(moduleName, latestSubmission) {
+    dynamicInputs.innerHTML = ''; 
+    const isRejected = latestSubmission && latestSubmission.status === 'Rejected';
+    const formTitle = isRejected ? 'Re-entry Required' : 'New Data Submission';
+    
+    clientMessage.textContent = isRejected ? 'Some fields were marked wrong by the Admin. Please review comments and re-enter data.' : '';
+    clientMessage.style.color = 'red';
 
-function generateForm(module) {
-    const dynamicInputs = document.getElementById('dynamic-inputs');
-    dynamicInputs.innerHTML = ''; // Clear loading message
-
-    // Define module requirements based on the module string
-    let requiredInputs = [];
-    if (module === 'Basic_S1_S2') {
-        requiredInputs = [
-            // { factorKey: unique_key_from_admin, label: "User friendly prompt" }
-            { factorKey: 'Grid_Electricity_S2', label: "Total Electricity Consumption (kWh)" },
-            { factorKey: 'Diesel_Vehicle_S1', label: "Liters of Diesel Used in Company Vehicles" }
-        ];
-    } else if (module === 'Full_All_Scopes') {
-        requiredInputs = [
-            { factorKey: 'Grid_Electricity_S2', label: "Total Electricity Consumption (kWh)" },
-            { factorKey: 'Diesel_Vehicle_S1', label: "Liters of Diesel Used in Company Vehicles" },
-            { factorKey: 'Business_Flights_S3', label: "Total km of Business Flights" }
-        ];
-    }
-
-    requiredInputs.forEach(inputDef => {
-        // Check if the required factor actually exists in our loaded data
-        const factor = emissionFactors[inputDef.factorKey];
-        if (factor) {
-            const div = document.createElement('div');
-            div.innerHTML = `
-                <label for="${inputDef.factorKey}">${inputDef.label} (Unit: ${factor.unit}):</label>
-                <input type="number" id="${inputDef.factorKey}" data-factor-key="${inputDef.factorKey}" step="any" required>
-            `;
-            dynamicInputs.appendChild(div);
-        } else {
-            // Error handling if Admin defined a module with a missing factor
-            console.warn(`Factor key ${inputDef.factorKey} is missing from emission factors.`);
-            const p = document.createElement('p');
-            p.textContent = `Warning: Missing factor for ${inputDef.label}.`;
-            dynamicInputs.appendChild(p);
+    // 1. Fetch Module factors
+    db.collection('modules').doc(moduleName).get().then(doc => {
+        if (!doc.exists) {
+            dynamicInputs.innerHTML = `<p style="color: red;">Error: Assigned module "${moduleName}" not found.</p>`;
+            return;
         }
-    });
+        
+        const module = doc.data();
+        module.factors.forEach(factorDef => {
+            const factorKey = factorDef.key;
+            const factor = emissionFactors[factorKey]; // Get full factor details (unit, value)
 
-    document.getElementById('submit-data-btn').disabled = false; // Enable button once form is built
+            // Get previous data/comment if rejected
+            const previousEntry = isRejected ? latestSubmission.entries[factorKey] : {};
+
+            if (factor) {
+                const div = document.createElement('div');
+                div.classList.add('input-group');
+                
+                // Show rejection status and comment
+                if (isRejected && previousEntry.reviewStatus === 'wrong') {
+                    div.innerHTML += `<p style="color: red; font-size: 0.9em;">
+                        **REJECTED:** ${previousEntry.adminComment || 'No comment provided.'}
+                    </p>`;
+                }
+
+                div.innerHTML += `
+                    <label for="${factorKey}">${factorDef.name} (Unit: ${factor.unit}):</label>
+                    <input type="number" id="${factorKey}" data-factor-key="${factorKey}" step="any" required
+                           value="${previousEntry.activity || ''}">
+                `;
+                dynamicInputs.appendChild(div);
+            }
+        });
+        submitDataBtn.disabled = false;
+    });
 }
 
-
-// ----------------------------------------------------
-// 3. Calculation and Submission Logic
-// ----------------------------------------------------
-
-document.getElementById('carbon-data-form').addEventListener('submit', (e) => {
+function handleSubmission(e) {
     e.preventDefault();
     const inputs = document.querySelectorAll('#dynamic-inputs input[type="number"]');
-    let totalFootprint = 0;
     let submissionData = {
         organizationId: auth.currentUser.uid,
         organizationName: currentUserData.organizationName,
         module: currentUserData.reportingModule,
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        status: 'Pending Review', // Set initial status
         entries: {}
     };
 
@@ -135,59 +158,66 @@ document.getElementById('carbon-data-form').addEventListener('submit', (e) => {
         const factor = emissionFactors[factorKey];
 
         if (activityData >= 0 && factor) {
-            const emission = activityData * factor.value;
-            totalFootprint += emission;
-            
-            // Store details of the entry
             submissionData.entries[factorKey] = {
                 activity: activityData,
-                factorValue: factor.value,
-                emission: emission,
-                unit: factor.unit
+                unit: factor.unit,
+                name: factor.name,
+                // Initial review status is correct, Admin must flag it as wrong later
+                reviewStatus: 'correct' 
             };
         }
     });
-
-    submissionData.totalFootprint = totalFootprint;
-    const resultDisplay = document.getElementById('calculation-result');
-    resultDisplay.textContent = `Calculated Footprint: ${totalFootprint.toFixed(2)} kg CO2e`;
     
-    // Save the submission to a new 'submissions' collection
+    // If re-submitting after rejection, delete the old submission
+    const oldSubmissionId = currentSubmission && currentSubmission.status === 'Rejected' ? currentSubmission.id : null;
+
     db.collection('submissions').add(submissionData)
         .then(() => {
-            alert('Data submitted successfully! Total Footprint: ' + totalFootprint.toFixed(2) + ' kg CO2e');
+            if (oldSubmissionId) {
+                return db.collection('submissions').doc(oldSubmissionId).delete();
+            }
+        })
+        .then(() => {
+            alert('Data submitted for Admin review. Calculation will appear after verification.');
             document.getElementById('carbon-data-form').reset();
-            loadHistoricalReports(auth.currentUser.uid); // Refresh reports
+            checkSubmissionStatus(auth.currentUser.uid); // Lock the form
         })
         .catch(error => {
             console.error("Error submitting data:", error);
             alert('Error submitting data: ' + error.message);
         });
-});
+}
 
-// ----------------------------------------------------
-// 4. Historical Reports Loading
-// ----------------------------------------------------
+function displayApprovedReport(report) {
+    calculationResult.innerHTML = `
+        <h3 style="color: #2ecc71;">✅ Verified Carbon Footprint</h3>
+        <p>Verified on: ${report.verifiedAt.toDate().toLocaleDateString()}</p>
+        <p style="font-size: 1.5em; font-weight: bold;">
+            Total $\text{CO}_2\text{e}$: ${report.finalFootprint.toFixed(2)} kg
+        </p>
+    `;
+}
 
 function loadHistoricalReports(userId) {
-    const reportsList = document.getElementById('reports-list');
     reportsList.innerHTML = '';
-
+    // Load ALL reports, including Rejected and Pending, for history
     db.collection('submissions')
         .where('organizationId', '==', userId)
         .orderBy('timestamp', 'desc')
-        .limit(10) // Show last 10 reports
+        .limit(10) 
         .get()
         .then((snapshot) => {
             snapshot.forEach((doc) => {
                 const report = doc.data();
                 const date = report.timestamp ? report.timestamp.toDate().toLocaleDateString() : 'N/A';
+                const statusColor = report.status === 'Approved' ? '#2ecc71' : report.status === 'Rejected' ? 'red' : 'orange';
+                
                 const listItem = document.createElement('li');
-                listItem.textContent = `Report Date: ${date} - Total: ${report.totalFootprint.toFixed(2)} kg CO2e (${report.module})`;
+                listItem.innerHTML = `
+                    Report Date: ${date} | Status: <strong style="color: ${statusColor};">${report.status}</strong>
+                    ${report.status === 'Approved' ? `| Total: ${report.finalFootprint.toFixed(2)} kg $\text{CO}_2\text{e}$` : ''}
+                `;
                 reportsList.appendChild(listItem);
             });
-        })
-        .catch(error => {
-            console.error("Error loading reports:", error);
         });
 }
