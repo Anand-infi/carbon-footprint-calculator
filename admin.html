@@ -30,8 +30,12 @@
         <button id="logout-btn">Logout</button>
         
         <div class="tab-container">
-            <button class="tab-link active" onclick="openTab(event, 'Factors')">Emission Factors</button>
-            <button class="tab-link" onclick="openTab(event, 'Clients')">Client Management</button>
+            <div class="tab-container">
+                <button class="tab-link active" onclick="openTab(event, 'Factors')">Emission Factors</button>
+                <button class="tab-link" onclick="openTab(event, 'Modules')">Reporting Modules</button> 
+                <button class="tab-link" onclick="openTab(event, 'Clients')">Client Management</button>
+                <button class="tab-link" onclick="openTab(event, 'Submissions')">Audit & Reports</button>
+            </div>
         </div>
 
         <div id="Factors" class="tab-content active-content">
@@ -47,9 +51,26 @@
             <ul id="factors-list">
                 </ul>
         </div>
+        
+        <div id="Modules" class="tab-content">
+            <h2>2. Define Reporting Modules</h2>
+            <form id="add-module-form">
+                <input type="text" id="module-id" placeholder="Module Name (e.g., Basic S1S2)" required>
+                <h3>Select Factors for this Module:</h3>
+                <div id="module-factors-list">
+                    <p>Load factors first...</p>
+                </div>
+                <button type="submit">Save Module</button>
+            </form>
+            <hr>
+            <h3>Existing Modules:</h3>
+            <ul id="modules-list">
+                </ul>
+        </div>
 
+             
         <div id="Clients" class="tab-content">
-            <h2>2. Manage Clients & Modules</h2>
+            <h2>3. Manage Clients & Modules</h2>
             <p>This is where you will register new clients and assign them a specific data input module.</p>
             <h2>2. Manage Clients & Modules</h2>
             <form id="add-client-form">
@@ -76,6 +97,18 @@
 
         <p id="admin-message" class="error"></p>
     </div>
+        
+            <div id="Submissions" class="tab-content">
+            <h2>4. Audit & Verify Submissions</h2>
+            <ul id="submission-notification-list">
+                </ul>
+        
+            <hr>
+            <h3>Submission Details (for Auditing):</h3>
+            <div id="audit-details-area">
+                <p>Select a submission above to view details.</p>
+            </div>
+        </div>
 
     <script src="admin.js"></script>
 </body>
