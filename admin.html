@@ -51,6 +51,27 @@
         <div id="Clients" class="tab-content">
             <h2>2. Manage Clients & Modules</h2>
             <p>This is where you will register new clients and assign them a specific data input module.</p>
+            <h2>2. Manage Clients & Modules</h2>
+            <form id="add-client-form">
+                <h3>Add New Client Organization</h3>
+                <input type="text" id="client-name" placeholder="Organization Name" required>
+                <input type="email" id="client-email" placeholder="Client User Email (for login)" required>
+                <input type="password" id="client-password" placeholder="Temporary Password" required>
+                
+                <label for="module-selector">Assign Reporting Module:</label>
+                <select id="module-selector" required>
+                    <option value="Basic_S1_S2">Basic Reporting (Scope 1 & 2)</option>
+                    <option value="Full_All_Scopes">Full Reporting (All Scopes)</option>
+                </select>
+                
+                <button type="submit">Create Client User</button>
+                <p id="client-message" class="error"></p>
+            </form>
+
+            <hr>
+            <h3>Existing Clients:</h3>
+            <ul id="clients-list">
+                </ul>
             </div>
 
         <p id="admin-message" class="error"></p>
