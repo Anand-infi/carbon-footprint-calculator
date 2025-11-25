@@ -41,12 +41,17 @@
         <div id="Factors" class="tab-content active-content">
             <h2>1. Manage Emission Factors</h2>
             <form id="add-factor-form">
-                <input type="text" id="factor-name" placeholder="Factor Name (e.g., Grid Electricity kWh)" required>
-                <input type="text" id="factor-scope" placeholder="Scope (1, 2, or 3)" required>
-                <input type="number" id="factor-value" placeholder="Factor Value (kg CO2e/unit)" step="0.001" required>
-                <input type="text" id="factor-unit" placeholder="Unit (e.g., kWh)" required>
-                <button type="submit">Add Factor</button>
+                <button type = "submit"> Add Factor </button>
             </form>
+
+            <hr>
+            <h3>View Existing Factors:</h3>
+            <select id = "factors-dropdown" style = "width:100%; padding: 10px: margin-top: 10px;>
+                <option value = "" disabled selected> Select a Factor to View Details </option>
+            </select>
+            <div id = "selected-facot-details" style = margin-top: 10px; padding: 10px; boarder: 1px solid #ccc; background-color: #f9f9f9;">
+                <p>Select a factor above.</p>
+            </div>
             <h3>Existing Factors:</h3>
             <ul id="factors-list">
                 </ul>
