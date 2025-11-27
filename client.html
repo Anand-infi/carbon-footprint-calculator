@@ -28,7 +28,19 @@
     <div class="container">
         <h1 id="welcome-message">Client Portal</h1>
         <button id="logout-btn">Logout</button>
-        
+      
+        <div id="logo-section" style="margin: 20px 0; border-top: 1px solid #eee; padding-top: 15px;">
+            <h3>Company Logo</h3>
+            <div id="current-logo" style="margin-bottom: 10px;">
+                <img id="company-logo-img" src="" alt="Company Logo" style="max-width: 150px; max-height: 150px; border: 1px solid #ccc; display: none;">
+                <p id="logo-status">No logo uploaded.</p>
+            </div>
+            
+            <input type="file" id="logo-file-input" accept="image/*">
+            <button id="upload-logo-btn" disabled>Upload Logo</button>
+            <p id="logo-message" style="margin-top: 5px; font-size: 0.9em;"></p>
+        </div>
+       
         <h2>Carbon Footprint Reporting</h2>
         
         <div id="reporting-form-container">
